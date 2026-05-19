@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Orbit Wars Arena</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    background: #0a0a1a;
+    color: #e0e0f0;
+    font-family: 'Outfit', sans-serif;
+    overflow: hidden;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Header */
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 24px;
+    background: linear-gradient(180deg, rgba(15,15,35,0.95) 0%, rgba(10,10,26,0.9) 100%);
+    border-bottom: 1px solid rgba(100,120,255,0.15);
+    z-index: 10;
+}
+
+.header h1 {
+    font-size: 20px;
+    font-weight: 600;
+    background: linear-gradient(135deg, #6e8efb, #a777e3);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: 1px;
+}
+
+.match-info {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    font-size: 14px;
+}
+
+.player-tag {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 14px;
+    border-radius: 20px;
+    font-weight: 500;
+    font-size: 13px;
+}
+
+.player-tag .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+.vs-text {
+    color: #666;
+    font-weight: 300;
+    font-size: 12px;
+}
+
+/* Main area */
+.main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* Canvas area */
+.canvas-wrapper {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    background: radial-gradient(ellipse at center, #0d0d2b 0%, #060614 70%);
+}
+
+canvas {
+    border-radius: 8px;
+    box-shadow: 0 0 60px rgba(100,120,255,0.08);
+}
+
+/* Sidebar */
+.sidebar {
+    width: 280px;
+    background: rgba(12,12,30,0.95);
+    border-left: 1px solid rgba(100,120,255,0.1);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+.sidebar-section {
+    padding: 16px 18px;
+    border-bottom: 1px solid rgba(100,120,255,0.08);
+}
+
+.sidebar-section h3 {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #667;
+    margin-bottom: 12px;
+    font-weight: 500;
+}
+
+/* Score cards */
+.score-card {
+    padding: 12px 14px;
+    border-radius: 10px;
+    margin-bottom: 8px;
+    position: relative;
+    overflow: hidden;
+}
+
+.score-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    opacity: 0.08;
+    border-radius: 10px;
+}
+
+.score-card .name {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+
+.score-card .stats {
+    display: flex;
+    gap: 16px;
+}
+
+.score-card .stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.score-card .stat-val {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px;
+    font-weight: 500;
+}
+
+.score-card .stat-label {
+    font-size: 10px;
+    color: #889;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.score-bar {
+    height: 3px;
+    border-radius: 2px;
+    margin-top: 8px;
+    background: rgba(255,255,255,0.05);
+    overflow: hidden;
+}
+
+.score-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+/* Game log */
+.game-log {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 18px;
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    color: #778;
+    line-height: 1.6;
+}
+
+.game-log .event {
+    padding: 2px 0;
+}
+
+/* Controls bar */
+.controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 24px;
+    background: rgba(12,12,30,0.98);
+    border-top: 1px solid rgba(100,120,255,0.12);
+}
+
+.controls button {
+    background: rgba(100,120,255,0.12);
+    border: 1px solid rgba(100,120,255,0.2);
+    color: #c0c8ff;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: 'Outfit', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.controls button:hover {
+    background: rgba(100,120,255,0.25);
+    border-color: rgba(100,120,255,0.4);
+    transform: translateY(-1px);
+}
+
+.controls button.active {
+    background: rgba(100,120,255,0.3);
+    border-color: rgba(100,120,255,0.5);
+    box-shadow: 0 0 12px rgba(100,120,255,0.2);
+}
+
+.speed-display {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: #99a;
+    min-width: 40px;
+    text-align: center;
+}
+
+.scrubber-wrapper {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.scrubber {
+    flex: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(100,120,255,0.15);
+    outline: none;
+    cursor: pointer;
+}
+
+.scrubber::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #6e8efb, #a777e3);
+    cursor: pointer;
+    box-shadow: 0 0 8px rgba(100,120,255,0.4);
+}
+
+.turn-display {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: #aab;
+    min-width: 100px;
+}
+
+/* Winner overlay */
+.winner-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(6,6,20,0.92);
+    border: 1px solid rgba(100,120,255,0.3);
+    border-radius: 16px;
+    padding: 30px 50px;
+    text-align: center;
+    display: none;
+    z-index: 20;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 0 60px rgba(100,120,255,0.15);
+}
+
+.winner-overlay h2 {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.winner-overlay p {
+    font-size: 14px;
+    color: #889;
+}
+
+/* Loading */
+.loading {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    z-index: 30;
+}
+
+.loading h2 {
+    font-size: 20px;
+    font-weight: 400;
+    color: #667;
+    margin-bottom: 12px;
+}
+
+.loading .spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(100,120,255,0.15);
+    border-top-color: #6e8efb;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Stars background */
+.stars {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none;
+    z-index: 0;
+}
+</style>
+</head>
+<body>
+
+<div class="header" id="header">
+    <h1>ORBIT WARS ARENA</h1>
+    <div class="match-info" id="matchInfo"></div>
+</div>
+
+<div class="main">
+    <div class="canvas-wrapper">
+        <canvas id="gameCanvas"></canvas>
+        <div class="winner-overlay" id="winnerOverlay">
+            <h2 id="winnerText">VICTORY</h2>
+            <p id="winnerDetails"></p>
+        </div>
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <h2>Loading replay data...</h2>
+        </div>
+    </div>
+    <div class="sidebar">
+        <div class="sidebar-section" id="scoresPanel">
+            <h3>Scoreboard</h3>
+        </div>
+        <div class="sidebar-section" style="flex:1; display:flex; flex-direction:column; padding-bottom:0;">
+            <h3>Battle Log</h3>
+            <div class="game-log" id="gameLog"></div>
+        </div>
+    </div>
+</div>
+
+<div class="controls">
+    <button id="btnRestart" title="Restart">&#x23EE;</button>
+    <button id="btnStepBack" title="Step Back">&#x23EA;</button>
+    <button id="btnPlayPause" title="Play/Pause" class="active">&#x25B6;</button>
+    <button id="btnStepFwd" title="Step Forward">&#x23E9;</button>
+    <button id="btnEnd" title="Jump to End">&#x23ED;</button>
+    <span style="color:#445">|</span>
+    <button id="btnSlower" title="Slower">-</button>
+    <span class="speed-display" id="speedDisplay">1x</span>
+    <button id="btnFaster" title="Faster">+</button>
+    <div class="scrubber-wrapper">
+        <input type="range" class="scrubber" id="scrubber" min="0" max="500" value="0">
+        <span class="turn-display" id="turnDisplay">Turn 0 / 0</span>
+    </div>
+</div>
+
+<script src="replay_data.js"></script>
+<script>
+// =====================================================================
+// ORBIT WARS VIEWER
+// =====================================================================
+
+const PLAYER_COLORS = [
+    { main: '#4fc3f7', glow: 'rgba(79,195,247,0.35)', bg: 'rgba(79,195,247,0.10)', name: 'Cyan' },
+    { main: '#ef5350', glow: 'rgba(239,83,80,0.35)',  bg: 'rgba(239,83,80,0.10)', name: 'Red' },
+    { main: '#66bb6a', glow: 'rgba(102,187,106,0.35)', bg: 'rgba(102,187,106,0.10)', name: 'Green' },
+    { main: '#ffa726', glow: 'rgba(255,167,38,0.35)', bg: 'rgba(255,167,38,0.10)', name: 'Orange' },
+];
+const NEUTRAL_COLOR = { main: '#555570', glow: 'rgba(85,85,112,0.2)' };
+const SUN_COLOR = '#ffb300';
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+let data = null;
+let currentFrame = 0;
+let playing = true;
+let speed = 1;
+let lastTime = 0;
+let accumulator = 0;
+const BASE_FRAME_MS = 120; // ms per frame at 1x speed
+
+// Star field
+const stars = [];
+for (let i = 0; i < 200; i++) {
+    stars.push({
+        x: Math.random(),
+        y: Math.random(),
+        size: Math.random() * 1.5 + 0.3,
+        alpha: Math.random() * 0.5 + 0.1,
+        twinkleSpeed: Math.random() * 2 + 0.5,
+    });
+}
+
+function init() {
+    if (typeof REPLAY_DATA === 'undefined') {
+        document.getElementById('loading').innerHTML = '<h2 style="color:#e55">No replay data found.<br>Run: python watch.py agent1.py agent2.py</h2>';
+        return;
+    }
+    data = REPLAY_DATA;
+    document.getElementById('loading').style.display = 'none';
+
+    // Setup canvas size
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    // Setup header
+    setupHeader();
+    setupControls();
+    setupScoreCards();
+
+    // Start animation
+    requestAnimationFrame(animate);
+}
+
+function resizeCanvas() {
+    const wrapper = canvas.parentElement;
+    const size = Math.min(wrapper.clientWidth - 40, wrapper.clientHeight - 40, 700);
+    canvas.width = size;
+    canvas.height = size;
+}
+
+function setupHeader() {
+    const names = data.agentNames || ['Player 0', 'Player 1'];
+    const count = Math.max(data.numPlayers || 0, names.length, 2);
+    const info = document.getElementById('matchInfo');
+    const parts = [];
+    for (let i = 0; i < count; i++) {
+        const pc = PLAYER_COLORS[i] || PLAYER_COLORS[i % PLAYER_COLORS.length];
+        parts.push(`
+            <div class="player-tag" style="background:${pc.bg}; border:1px solid ${pc.main}40">
+                <span class="dot" style="background:${pc.main}"></span>
+                ${names[i] || `Player ${i}`}
+            </div>
+        `);
+    }
+    info.innerHTML = parts.join('<span class="vs-text">VS</span>');
+}
+
+function setupScoreCards() {
+    const panel = document.getElementById('scoresPanel');
+    const names = data.agentNames || ['Player 0', 'Player 1'];
+    let html = '<h3>Scoreboard</h3>';
+
+    for (let i = 0; i < Math.min(data.numPlayers, 4); i++) {
+        const pc = PLAYER_COLORS[i];
+        html += `
+            <div class="score-card" id="scoreCard${i}" style="border:1px solid ${pc.main}20; background:${pc.bg}">
+                <div class="name" style="color:${pc.main}">${names[i] || 'Player ' + i}</div>
+                <div class="stats">
+                    <div class="stat">
+                        <span class="stat-val" id="ships${i}" style="color:${pc.main}">0</span>
+                        <span class="stat-label">Ships</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-val" id="planets${i}" style="color:${pc.main}">0</span>
+                        <span class="stat-label">Planets</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-val" id="prod${i}" style="color:${pc.main}">0</span>
+                        <span class="stat-label">Prod</span>
+                    </div>
+                </div>
+                <div class="score-bar">
+                    <div class="score-bar-fill" id="bar${i}" style="background:${pc.main}; width:50%"></div>
+                </div>
+            </div>
+        `;
+    }
+    panel.innerHTML = html;
+}
+
+function setupControls() {
+    const scrubber = document.getElementById('scrubber');
+    scrubber.max = data.frames.length - 1;
+
+    document.getElementById('btnPlayPause').onclick = () => {
+        playing = !playing;
+        document.getElementById('btnPlayPause').innerHTML = playing ? '&#x23F8;' : '&#x25B6;';
+        document.getElementById('btnPlayPause').classList.toggle('active', playing);
+    };
+    document.getElementById('btnRestart').onclick = () => { currentFrame = 0; updateScrubber(); };
+    document.getElementById('btnEnd').onclick = () => { currentFrame = data.frames.length - 1; playing = false; updateScrubber(); };
+    document.getElementById('btnStepBack').onclick = () => { currentFrame = Math.max(0, currentFrame - 1); playing = false; updateScrubber(); };
+    document.getElementById('btnStepFwd').onclick = () => { currentFrame = Math.min(data.frames.length - 1, currentFrame + 1); playing = false; updateScrubber(); };
+
+    document.getElementById('btnSlower').onclick = () => {
+        speed = Math.max(0.25, speed / 2);
+        document.getElementById('speedDisplay').textContent = speed + 'x';
+    };
+    document.getElementById('btnFaster').onclick = () => {
+        speed = Math.min(16, speed * 2);
+        document.getElementById('speedDisplay').textContent = speed + 'x';
+    };
+
+    scrubber.addEventListener('input', (e) => {
+        currentFrame = parseInt(e.target.value);
+        playing = false;
+        document.getElementById('btnPlayPause').innerHTML = '&#x25B6;';
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+        if (e.code === 'Space') { e.preventDefault(); document.getElementById('btnPlayPause').click(); }
+        if (e.code === 'ArrowLeft') { document.getElementById('btnStepBack').click(); }
+        if (e.code === 'ArrowRight') { document.getElementById('btnStepFwd').click(); }
+        if (e.code === 'ArrowUp') { document.getElementById('btnFaster').click(); }
+        if (e.code === 'ArrowDown') { document.getElementById('btnSlower').click(); }
+        if (e.code === 'KeyR') { document.getElementById('btnRestart').click(); }
+    });
+}
+
+function updateScrubber() {
+    document.getElementById('scrubber').value = currentFrame;
+    document.getElementById('turnDisplay').textContent = `Turn ${currentFrame} / ${data.frames.length - 1}`;
+}
+
+function animate(timestamp) {
+    if (!data) return;
+
+    const delta = timestamp - lastTime;
+    lastTime = timestamp;
+
+    if (playing && currentFrame < data.frames.length - 1) {
+        accumulator += delta;
+        const frameTime = BASE_FRAME_MS / speed;
+        while (accumulator >= frameTime && currentFrame < data.frames.length - 1) {
+            currentFrame++;
+            accumulator -= frameTime;
+        }
+    }
+
+    if (currentFrame >= data.frames.length - 1 && playing) {
+        playing = false;
+        document.getElementById('btnPlayPause').innerHTML = '&#x25B6;';
+        document.getElementById('btnPlayPause').classList.remove('active');
+        showWinner();
+    }
+
+    updateScrubber();
+    renderFrame(data.frames[currentFrame], timestamp);
+    updateScoreboard(data.frames[currentFrame]);
+
+    requestAnimationFrame(animate);
+}
+
+function renderFrame(frame, timestamp) {
+    const W = canvas.width;
+    const H = canvas.height;
+    const scale = W / 100;
+
+    // Clear
+    ctx.fillStyle = '#060614';
+    ctx.fillRect(0, 0, W, H);
+
+    // Stars
+    for (const star of stars) {
+        const twinkle = 0.5 + 0.5 * Math.sin(timestamp * 0.001 * star.twinkleSpeed);
+        ctx.fillStyle = `rgba(180,190,255,${star.alpha * twinkle})`;
+        ctx.beginPath();
+        ctx.arc(star.x * W, star.y * H, star.size, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // Sun
+    const sunX = 50 * scale;
+    const sunY = 50 * scale;
+    const sunR = 10 * scale;
+
+    // Sun glow
+    const sunGrad = ctx.createRadialGradient(sunX, sunY, sunR * 0.2, sunX, sunY, sunR * 2.5);
+    sunGrad.addColorStop(0, 'rgba(255,179,0,0.4)');
+    sunGrad.addColorStop(0.4, 'rgba(255,120,0,0.15)');
+    sunGrad.addColorStop(1, 'rgba(255,80,0,0)');
+    ctx.fillStyle = sunGrad;
+    ctx.beginPath();
+    ctx.arc(sunX, sunY, sunR * 2.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Sun body
+    const sunBody = ctx.createRadialGradient(sunX, sunY, sunR * 0.1, sunX, sunY, sunR);
+    sunBody.addColorStop(0, '#fff8e1');
+    sunBody.addColorStop(0.3, '#ffcc02');
+    sunBody.addColorStop(0.7, '#ff9800');
+    sunBody.addColorStop(1, '#e65100');
+    ctx.fillStyle = sunBody;
+    ctx.beginPath();
+    ctx.arc(sunX, sunY, sunR, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Corona flicker
+    const coronaPulse = 1 + 0.05 * Math.sin(timestamp * 0.003);
+    ctx.strokeStyle = 'rgba(255,200,50,0.15)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(sunX, sunY, sunR * coronaPulse * 1.15, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Planets
+    for (const planet of frame.planets) {
+        const px = planet.x * scale;
+        const py = planet.y * scale;
+        const pr = Math.max(3, planet.radius * scale);
+
+        const pc = planet.owner === -1 ? NEUTRAL_COLOR : (PLAYER_COLORS[planet.owner] || NEUTRAL_COLOR);
+
+        // Planet glow
+        const glow = ctx.createRadialGradient(px, py, pr * 0.5, px, py, pr * 2.5);
+        glow.addColorStop(0, pc.glow || 'rgba(100,100,150,0.2)');
+        glow.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(px, py, pr * 2.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Planet body
+        ctx.fillStyle = pc.main;
+        ctx.beginPath();
+        ctx.arc(px, py, pr, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Planet border
+        ctx.strokeStyle = planet.owner === -1 ? 'rgba(150,150,180,0.3)' : pc.main + '80';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // Ship count label
+        const ships = Math.round(planet.ships);
+        if (ships > 0 || planet.owner !== -1) {
+            ctx.font = `${Math.max(9, Math.min(13, pr * 0.9))}px 'JetBrains Mono', monospace`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            // Text shadow for readability
+            ctx.fillStyle = 'rgba(0,0,0,0.7)';
+            ctx.fillText(ships, px + 1, py + 1);
+            ctx.fillStyle = '#fff';
+            ctx.fillText(ships, px, py);
+        }
+
+        // Production indicator (small dots around planet)
+        if (planet.production > 0 && pr > 5) {
+            const prodDots = Math.min(planet.production, 6);
+            for (let d = 0; d < prodDots; d++) {
+                const angle = (d / prodDots) * Math.PI * 2 - Math.PI / 2;
+                const dx = px + Math.cos(angle) * (pr + 4);
+                const dy = py + Math.sin(angle) * (pr + 4);
+                ctx.fillStyle = pc.main + '60';
+                ctx.beginPath();
+                ctx.arc(dx, dy, 1.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+    }
+
+    // Fleets
+    for (const fleet of frame.fleets) {
+        const fx = fleet.x * scale;
+        const fy = fleet.y * scale;
+        const fc = PLAYER_COLORS[fleet.owner] || NEUTRAL_COLOR;
+
+        // Fleet size determines visual size
+        const fleetSize = Math.max(2, Math.min(6, Math.log(fleet.ships + 1) * 1.2));
+
+        // Fleet trail
+        const trailLen = fleetSize * 3;
+        const trailX = fx - Math.cos(fleet.angle) * trailLen;
+        const trailY = fy - Math.sin(fleet.angle) * trailLen;
+        const trailGrad = ctx.createLinearGradient(trailX, trailY, fx, fy);
+        trailGrad.addColorStop(0, 'rgba(0,0,0,0)');
+        trailGrad.addColorStop(1, fc.main + '60');
+        ctx.strokeStyle = trailGrad;
+        ctx.lineWidth = fleetSize * 0.6;
+        ctx.beginPath();
+        ctx.moveTo(trailX, trailY);
+        ctx.lineTo(fx, fy);
+        ctx.stroke();
+
+        // Fleet dot
+        ctx.fillStyle = fc.main;
+        ctx.beginPath();
+        ctx.arc(fx, fy, fleetSize, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Fleet glow
+        ctx.fillStyle = fc.glow || 'rgba(150,150,255,0.2)';
+        ctx.beginPath();
+        ctx.arc(fx, fy, fleetSize * 2, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Ship count for large fleets
+        if (fleet.ships >= 10) {
+            ctx.font = "9px 'JetBrains Mono', monospace";
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            ctx.fillStyle = fc.main + 'cc';
+            ctx.fillText(Math.round(fleet.ships), fx, fy - fleetSize - 2);
+        }
+    }
+
+    // Turn counter (top-left overlay)
+    ctx.font = "bold 14px 'JetBrains Mono', monospace";
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(8, 8, 90, 24);
+    ctx.fillStyle = '#aab';
+    ctx.fillText(`Turn ${frame.step}`, 14, 13);
+}
+
+function updateScoreboard(frame) {
+    if (!frame.scores) return;
+
+    let totalShips = 0;
+    for (const s of frame.scores) totalShips += s.ships;
+
+    for (const score of frame.scores) {
+        const i = score.player;
+        const el = document.getElementById(`ships${i}`);
+        if (el) el.textContent = score.ships;
+
+        const pe = document.getElementById(`planets${i}`);
+        if (pe) pe.textContent = score.planets;
+
+        // Calculate production from planets
+        let prod = 0;
+        for (const p of frame.planets) {
+            if (p.owner === i) prod += p.production;
+        }
+        const prEl = document.getElementById(`prod${i}`);
+        if (prEl) prEl.textContent = prod;
+
+        // Score bar
+        const bar = document.getElementById(`bar${i}`);
+        if (bar && totalShips > 0) {
+            bar.style.width = (score.ships / totalShips * 100) + '%';
+        }
+    }
+}
+
+function showWinner() {
+    const frame = data.frames[data.frames.length - 1];
+    if (!frame.scores || frame.scores.length < 2) return;
+
+    let bestReward = -Infinity;
+    let bestShips = -Infinity;
+    let winner = -1;
+    let winnerCount = 0;
+    for (const s of frame.scores) {
+        const reward = Number.isFinite(s.reward) ? s.reward : 0;
+        const ships = Number.isFinite(s.ships) ? s.ships : 0;
+        if (reward > bestReward || (reward === bestReward && ships > bestShips)) {
+            bestReward = reward;
+            bestShips = ships;
+            winner = s.player;
+            winnerCount = 1;
+        } else if (reward === bestReward && ships === bestShips) {
+            winnerCount += 1;
+        }
+    }
+
+    const names = data.agentNames || ['Player 0', 'Player 1'];
+    const pc = PLAYER_COLORS[winner] || PLAYER_COLORS[0];
+
+    const overlay = document.getElementById('winnerOverlay');
+    const text = document.getElementById('winnerText');
+    const details = document.getElementById('winnerDetails');
+
+    if (winner < 0 || winnerCount > 1) {
+        text.style.color = '#ecf3ff';
+        text.textContent = 'TIE';
+        details.textContent = `${bestShips} ships after ${data.frames.length - 1} turns`;
+        overlay.style.borderColor = 'rgba(148, 163, 184, 0.4)';
+    } else {
+        text.style.color = pc.main;
+        text.textContent = `${names[winner] || `Player ${winner}`} WINS!`;
+        details.textContent = `${bestShips} ships after ${data.frames.length - 1} turns`;
+        overlay.style.borderColor = pc.main + '40';
+    }
+    overlay.style.display = 'block';
+
+    // Auto-hide after 5s
+    setTimeout(() => { overlay.style.display = 'none'; }, 5000);
+}
+
+// Initialize
+window.addEventListener('load', init);
+</script>
+</body>
+</html>
