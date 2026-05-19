@@ -7,4 +7,6 @@ __pycache__/
 local-arena/replays/
 local-arena/watch_replays/
 _bmad-output/
+_bmad
+.agents
 "@ | Out-File -Encoding utf8 .gitignore
