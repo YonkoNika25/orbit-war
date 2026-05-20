@@ -1,9 +1,30 @@
 from __future__ import annotations
 
 import math
+from dataclasses import fields, is_dataclass
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 from .types import Fleet, GameState, Planet
+
+CONFIG_KEYS = (
+    "angular_velocity",
+    "angularVelocity",
+    "initial_planets",
+    "comets",
+    "comet_planet_ids",
+    "next_fleet_id",
+    "sunRadius",
+    "sun_radius",
+    "boardSize",
+    "board_size",
+    "size",
+    "sunX",
+    "sun_x",
+    "center_x",
+    "sunY",
+    "sun_y",
+    "center_y",
+)
 
 
 def parse_observation(obs: Any, config: Any = None) -> GameState:
@@ -11,15 +32,7 @@ def parse_observation(obs: Any, config: Any = None) -> GameState:
     config_map = _to_mapping(config)
     config_map = {**config_map}
 
-    for key in (
-        "angular_velocity",
-        "initial_planets",
-        "comets",
-        "comet_planet_ids",
-        "next_fleet_id",
-        "sunRadius",
-        "boardSize",
-    ):
+    for key in CONFIG_KEYS:
         if key in data and key not in config_map:
             config_map[key] = data[key]
 
@@ -44,7 +57,14 @@ def parse_observation(obs: Any, config: Any = None) -> GameState:
     _apply_comet_metadata(planets, meta)
     _apply_initial_motion_metadata(planets, meta)
 
-    return GameState(step=step, player_id=player_id, planets=planets, fleets=fleets, config=config_map)
+    return GameState(
+        step=step,
+        player_id=player_id,
+        planets=planets,
+        fleets=fleets,
+        config=config_map,
+        extras=_root_extras(data),
+    )
 
 
 def _to_mapping(value: Any) -> Dict[str, Any]:
@@ -54,8 +74,16 @@ def _to_mapping(value: Any) -> Dict[str, Any]:
         return {}
     if isinstance(value, (list, tuple)):
         return _sequence_to_root_map(value)
+    if is_dataclass(value) and not isinstance(value, type):
+        return {field.name: getattr(value, field.name) for field in fields(value)}
     if hasattr(value, "__dict__"):
         return dict(vars(value))
+    if hasattr(value, "__slots__"):
+        return {
+            name: getattr(value, name)
+            for name in _iter_slot_names(value)
+            if hasattr(value, name)
+        }
     return {}
 
 
@@ -89,6 +117,18 @@ def _looks_like_collection(value: Any) -> bool:
     return isinstance(value, (list, tuple, dict))
 
 
+def _iter_slot_names(value: Any) -> List[str]:
+    names: List[str] = []
+    for cls in type(value).__mro__:
+        slots = getattr(cls, "__slots__", ())
+        if isinstance(slots, str):
+            slots = (slots,)
+        for name in slots:
+            if name not in {"__dict__", "__weakref__"}:
+                names.append(name)
+    return names
+
+
 def _pick_any(data: Dict[str, Any], keys: Sequence[str], default: Any = None) -> Any:
     for key in keys:
         if key in data:
@@ -110,8 +150,8 @@ def _coerce_planet(item: Any, fallback_id: int, meta: Dict[str, Any]) -> Planet:
     if isinstance(item, Planet):
         return item
 
-    if isinstance(item, dict):
-        payload = item
+    if isinstance(item, dict) or is_dataclass(item) or hasattr(item, "__dict__") or hasattr(item, "__slots__"):
+        payload = _to_mapping(item)
     elif isinstance(item, (list, tuple)):
         payload = _sequence_to_planet_map(item, fallback_id)
     else:
@@ -136,24 +176,21 @@ def _coerce_planet(item: Any, fallback_id: int, meta: Dict[str, Any]) -> Planet:
     # current coordinates with initial_planets. Inferring movement for every
     # eligible planet makes the bot aim at fake future positions, which is the
     # most common reason fleets miss and fly out of the map.
-    explicit_orbit = any(
-        key in payload
-        for key in (
-            "orbit_radius",
-            "orbital_radius",
-            "orbit_speed",
-            "angular_speed",
-            "speed_angle",
-            "orbit_center_x",
-            "center_x",
-            "cx0",
-            "orbit_center_y",
-            "center_y",
-            "cy0",
+    explicit_orbit = _has_complete_explicit_orbit(payload)
+    valid_orbit_values = all(
+        math.isfinite(value)
+        for value in (
+            orbit_center_x,
+            orbit_center_y,
+            orbit_angle,
+            orbit_speed,
+            orbit_radius,
         )
     )
-    if orbit_radius <= 0.0 or not explicit_orbit:
+    if orbit_radius <= 0.0 or not explicit_orbit or not valid_orbit_values:
         orbit_radius = 0.0
+        orbit_speed = 0.0
+        orbit_angle = 0.0
         if orbit_speed == 0.0:
             orbit_center_x = x
             orbit_center_y = y
@@ -216,6 +253,20 @@ def _coerce_planet(item: Any, fallback_id: int, meta: Dict[str, Any]) -> Planet:
     )
 
 
+def _has_complete_explicit_orbit(payload: Dict[str, Any]) -> bool:
+    return (
+        _has_any_key(payload, ("orbit_radius", "orbital_radius"))
+        and _has_any_key(payload, ("orbit_speed", "angular_speed", "speed_angle"))
+        and _has_any_key(payload, ("orbit_angle", "angle"))
+        and _has_any_key(payload, ("orbit_center_x", "center_x", "cx0"))
+        and _has_any_key(payload, ("orbit_center_y", "center_y", "cy0"))
+    )
+
+
+def _has_any_key(payload: Dict[str, Any], keys: Iterable[str]) -> bool:
+    return any(key in payload for key in keys)
+
+
 def _sequence_to_planet_map(values: Sequence[Any], fallback_id: int) -> Dict[str, Any]:
     payload: Dict[str, Any] = {}
 
@@ -246,8 +297,8 @@ def _coerce_fleet(item: Any) -> Fleet:
     if isinstance(item, Fleet):
         return item
 
-    if isinstance(item, dict):
-        payload = item
+    if isinstance(item, dict) or is_dataclass(item) or hasattr(item, "__dict__") or hasattr(item, "__slots__"):
+        payload = _to_mapping(item)
     elif isinstance(item, (list, tuple)):
         payload = _sequence_to_fleet_map(item)
     else:
@@ -328,11 +379,13 @@ def _build_meta(data: Dict[str, Any], config_map: Dict[str, Any]) -> Dict[str, A
     comet_map: Dict[int, Dict[str, Any]] = {}
     comets = _pick_any(data, ("comets",), default=[])
     for group in _ensure_list(comets):
-        if not isinstance(group, dict):
+        if isinstance(group, dict) or is_dataclass(group) or hasattr(group, "__dict__") or hasattr(group, "__slots__"):
+            group_payload = _to_mapping(group)
+        else:
             continue
-        planet_ids = _ensure_list(group.get("planet_ids"))
-        paths = _ensure_list(group.get("paths"))
-        path_index = _first_int(group, ("path_index",), 0)
+        planet_ids = _ensure_list(group_payload.get("planet_ids"))
+        paths = _normalize_comet_paths(group_payload.get("paths"), len(planet_ids))
+        path_index = _first_int(group_payload, ("path_index",), 0)
         for idx, pid in enumerate(planet_ids):
             try:
                 pid_int = int(pid)
@@ -343,11 +396,13 @@ def _build_meta(data: Dict[str, Any], config_map: Dict[str, Any]) -> Dict[str, A
 
     initial_by_id: Dict[int, Tuple[float, float]] = {}
     for index, item in enumerate(_ensure_list(_pick_any(combined, ("initial_planets",), default=[]))):
-        if isinstance(item, dict):
-            payload = item
+        if isinstance(item, dict) or is_dataclass(item) or hasattr(item, "__dict__") or hasattr(item, "__slots__"):
+            payload = _to_mapping(item)
         elif isinstance(item, (list, tuple)):
             payload = _sequence_to_planet_map(item, index)
         else:
+            continue
+        if not _has_valid_xy(payload):
             continue
         planet_id = _first_int(payload, ("id", "planet_id", "index"), index)
         initial_by_id[planet_id] = (
@@ -367,6 +422,65 @@ def _build_meta(data: Dict[str, Any], config_map: Dict[str, Any]) -> Dict[str, A
     }
 
 
+def _has_valid_xy(payload: Dict[str, Any]) -> bool:
+    x = _first_value(payload, ("x", "pos_x", "cx"), None)
+    y = _first_value(payload, ("y", "pos_y", "cy"), None)
+    if x is None or y is None:
+        return False
+    try:
+        return math.isfinite(float(x)) and math.isfinite(float(y))
+    except (TypeError, ValueError):
+        return False
+
+
+def _normalize_comet_paths(paths_value: Any, planet_count: int) -> List[Any]:
+    paths = _ensure_list(paths_value)
+    if planet_count == 1 and _looks_like_point_sequence(paths):
+        return [paths]
+    return paths
+
+
+def _looks_like_point_sequence(value: Any) -> bool:
+    if not isinstance(value, list) or not value:
+        return False
+    first = value[0]
+    return (
+        isinstance(first, (list, tuple))
+        and len(first) >= 2
+        and _is_number_like(first[0])
+        and _is_number_like(first[1])
+    )
+
+
+def _is_number_like(value: Any) -> bool:
+    try:
+        float(value)
+    except (TypeError, ValueError):
+        return False
+    return True
+
+
+def _root_extras(data: Dict[str, Any]) -> Dict[str, Any]:
+    consumed = {
+        "step",
+        "turn",
+        "time",
+        "player_id",
+        "player",
+        "current_player",
+        "team_id",
+        "agent_id",
+        "planets",
+        "planet_list",
+        "nodes",
+        "fleets",
+        "fleet_list",
+        "ships_in_flight",
+        *CONFIG_KEYS,
+    }
+    return {key: value for key, value in data.items() if key not in consumed}
+
+
 def _apply_comet_metadata(planets: List[Planet], meta: Dict[str, Any]) -> None:
     comet_map = meta.get("comet_map", {})
     if not comet_map:
@@ -384,8 +498,6 @@ def _apply_comet_metadata(planets: List[Planet], meta: Dict[str, Any]) -> None:
 def _apply_initial_motion_metadata(planets: List[Planet], meta: Dict[str, Any]) -> None:
     initial_by_id = meta.get("initial_by_id", {})
     angular_velocity = float(meta.get("angular_velocity", 0.0) or 0.0)
-    if not initial_by_id and angular_velocity == 0.0:
-        return
 
     for planet in planets:
         if planet.extras.get("is_comet"):

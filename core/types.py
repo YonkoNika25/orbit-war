@@ -46,6 +46,7 @@ class GameState:
     planets: List[Planet]
     fleets: List[Fleet]
     config: Dict[str, Any] = field(default_factory=dict)
+    extras: Dict[str, Any] = field(default_factory=dict)
 
     @property
     def my_planets(self) -> List[Planet]:
