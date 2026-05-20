@@ -1,4 +1,3 @@
- @"
 .venv/
 __pycache__/
 *.pyc
@@ -6,7 +5,7 @@ __pycache__/
 .extracted_*.py
 local-arena/replays/
 local-arena/watch_replays/
+artifacts/
 _bmad-output/
 _bmad
 .agents
-"@ | Out-File -Encoding utf8 .gitignore

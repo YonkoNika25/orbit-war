@@ -49,9 +49,9 @@ def _seat_order_for_game(agents, agent_names, game_id):
     )
 
 
-def run_and_capture(agents, agent_names):
+def run_and_capture(agents, agent_names, configuration=None):
     """Run a game and capture full step-by-step data for visualization."""
-    env = make("orbit_wars", debug=False)
+    env = make("orbit_wars", configuration=dict(configuration or {}), debug=False)
     reset_telemetry()
     result = env.run(agents)
 
@@ -183,6 +183,8 @@ def main():
     parser.add_argument("--speed", type=float, default=1.0, help="Playback speed multiplier")
     parser.add_argument("--port", type=int, default=8765, help="HTTP server port")
     parser.add_argument("--games", type=int, default=1, help="Number of games to run and save")
+    parser.add_argument("--seed", type=int, help="Optional Orbit Wars environment seed")
+    parser.add_argument("--no-open", action="store_true", help="Do not auto-open the HTML replay")
     parser.add_argument(
         "--output-dir",
         default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "watch_replays"),
@@ -206,11 +208,12 @@ def main():
     unique_names = _unique_names(names)
     saved_paths = []
     total_start = time.time()
+    configuration = {"seed": args.seed} if args.seed is not None else None
     for game_id in range(args.games):
         seat_agents, seat_names = _seat_order_for_game(agents, unique_names, game_id)
         print(f"Running game {game_id + 1}/{args.games}: {' vs '.join(seat_names)}...")
         start = time.time()
-        replay_data = run_and_capture(seat_agents, seat_names)
+        replay_data = run_and_capture(seat_agents, seat_names, configuration=configuration)
         elapsed = time.time() - start
         print(f"Game {game_id + 1} completed in {elapsed:.1f}s ({len(replay_data['frames'])} frames)")
 
@@ -225,7 +228,7 @@ def main():
     total_elapsed = time.time() - total_start
     print(f"Saved {len(saved_paths)} HTML replay(s) in {total_elapsed:.1f}s")
 
-    if args.games == 1 and saved_paths:
+    if args.games == 1 and saved_paths and not args.no_open:
         url = "file:///" + saved_paths[0].replace("\\", "/")
         print(f"Opening viewer: {url}")
         import webbrowser

@@ -15,6 +15,7 @@ pip install kaggle-environments
 |------|---------|
 | `arena.py` | CLI match runner with stats |
 | `watch.py` | Visual game viewer |
+| `demo_epics.py` | One-command Epic 1-3 visual demo replay |
 | `viewer.html` | Browser-based replay renderer |
 | `notebook_util.py` | Auto-extracts code from .ipynb files |
 
@@ -31,6 +32,9 @@ python watch.py my-agent.ipynb opponent.ipynb
 
 # Mix formats
 python watch.py submission.py opponent.ipynb
+
+# Deterministic replay without auto-opening
+python watch.py submission.py opponent.py --seed 7 --no-open
 ```
 
 Opens `viewer.html` in your browser with playback controls:
@@ -38,6 +42,19 @@ Opens `viewer.html` in your browser with playback controls:
 - **Arrow left/right** — step back/forward
 - **Arrow up/down** — speed up/down
 - **R** — restart
+
+### Epic 1-3 demo
+
+```bash
+python demo_epics.py --seed 7
+```
+
+Generates a standalone HTML replay for `demo_epic3_agent.py` vs `random` with turn-by-turn debug data:
+- parser/runtime state summary
+- candidate counts and legal mask counts
+- selected candidate and emitted action
+- rejection reasons for masked candidates
+- selected route overlays on the map
 
 ### Run stats (CLI)
 
