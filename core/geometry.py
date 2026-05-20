@@ -47,8 +47,26 @@ def path_crosses_sun(
             sun_x,
             sun_y,
     )
-    < sun_radius + margin
+    <= sun_radius + margin
 )
+
+
+def is_sun_safe_route(
+    source: Tuple[float, float],
+    target: Tuple[float, float],
+    margin: float = 1.5,
+    sun_x: float = 50.0,
+    sun_y: float = 50.0,
+    sun_radius: float = 10.0,
+) -> bool:
+    return not path_crosses_sun(
+        source,
+        target,
+        margin=margin,
+        sun_x=sun_x,
+        sun_y=sun_y,
+        sun_radius=sun_radius,
+    )
 
 
 def predict_position(planet: Planet, future_step: int) -> Tuple[float, float]:
@@ -81,6 +99,51 @@ def predict_position(planet: Planet, future_step: int) -> Tuple[float, float]:
 def estimate_eta(source: Planet, target: Planet, speed: Optional[float] = None) -> int:
     fleet_speed = speed if speed and speed > 0 else 1.0
     return max(1, int(math.ceil(distance(source, target) / fleet_speed)))
+
+
+def find_intercept_angle(
+    source: Planet,
+    target: Planet,
+    speed: float,
+    max_steps: int = 50,
+    launch_clearance: float = 0.1,
+    hit_margin: float = 0.0,
+) -> Optional[Tuple[float, int]]:
+    """Find a direct launch angle that intersects a moving target."""
+
+    if speed <= 0 or max_steps <= 0:
+        return None
+
+    origin = (source.x, source.y)
+    for aimed_step in range(1, max_steps + 1):
+        aimed_target = predict_position(target, aimed_step)
+        angle = angle_to(origin, aimed_target)
+        current = (
+            source.x + math.cos(angle) * (source.radius + launch_clearance),
+            source.y + math.sin(angle) * (source.radius + launch_clearance),
+        )
+
+        for step in range(1, aimed_step + 1):
+            previous = current
+            current = (
+                previous[0] + math.cos(angle) * speed,
+                previous[1] + math.sin(angle) * speed,
+            )
+            target_position = predict_position(target, step)
+            if (
+                line_segment_min_distance(
+                    previous[0],
+                    previous[1],
+                    current[0],
+                    current[1],
+                    target_position[0],
+                    target_position[1],
+                )
+                <= target.radius + hit_margin
+            ):
+                return angle, step
+
+    return None
 
 
 def fleet_speed_for_ships(ships: int, max_speed: float = 6.0) -> float:
